@@ -6,7 +6,7 @@ import { cancelTimeout, requestTimeout } from './timer';
 
 import type { TimeoutID } from './timer';
 
-export type ScrollToAlign = 'auto' | 'center' | 'start' | 'end';
+export type ScrollToAlign = 'auto' | 'smart' | 'center' | 'start' | 'end';
 
 type itemSize = number | ((index: number) => number);
 // TODO Deprecate directions "horizontal" and "vertical"
@@ -107,7 +107,7 @@ const IS_SCROLLING_DEBOUNCE_INTERVAL = 150;
 
 export const defaultItemKey = (index: number, data: any) => index;
 
-// In DEV mode, this Set helps us only log a warning once per component instace.
+// In DEV mode, this Set helps us only log a warning once per component instance.
 // This avoids spamming the console every time a render happens.
 let devWarningsDirection = null;
 let devWarningsTagName = null;
@@ -180,19 +180,27 @@ export default function createListComponent({
     }
 
     scrollTo(scrollOffset: number): void {
-      this.setState(
-        prevState => ({
+      scrollOffset = Math.max(0, scrollOffset);
+
+      this.setState(prevState => {
+        if (prevState.scrollOffset === scrollOffset) {
+          return null;
+        }
+        return {
           scrollDirection:
             prevState.scrollOffset < scrollOffset ? 'forward' : 'backward',
           scrollOffset: scrollOffset,
           scrollUpdateWasRequested: true,
-        }),
-        this._resetIsScrollingDebounced
-      );
+        };
+      }, this._resetIsScrollingDebounced);
     }
 
     scrollToItem(index: number, align: ScrollToAlign = 'auto'): void {
+      const { itemCount } = this.props;
       const { scrollOffset } = this.state;
+
+      index = Math.max(0, Math.min(index, itemCount - 1));
+
       this.scrollTo(
         getOffsetForIndexAndAlignment(
           this.props,
@@ -302,7 +310,7 @@ export default function createListComponent({
           ref: innerRef,
           style: {
             height: isHorizontal ? '100%' : estimatedTotalSize,
-            pointerEvents: isScrolling ? 'none' : '',
+            pointerEvents: isScrolling ? 'none' : undefined,
             width: isHorizontal ? estimatedTotalSize : '100%',
           },
         })
